@@ -11,10 +11,10 @@ from zipfile import ZipFile
 # print(os.getcwd())
 
 if os.path.exists("data"): 
-    folder = "./data"
+    folder = "./data/"
 else: 
-    folder = "../data"
-    
+    folder = "../data/"
+
 file = "DataScienceCodingChallenge.zip"
 path = folder + file 
 
@@ -44,6 +44,8 @@ ts = pd.read_csv(time_series_data)
 
 #TODO: split the datetime into day and time, both for understanding and visualization
 
+ts["temperature"].describe()
+
 # notice 1:
 # source_id holds only 1 entry: 
 # pd.crosstab(ts["source_id"], ts["source_id"])
@@ -53,12 +55,18 @@ from plotnine import ggplot, aes, geom_point, theme, element_text
 first_plot = ggplot(ts) + aes(x = "datetime", y = "temperature", color = "property_name") + geom_point() + theme(axis_text_x = element_text(angle = 70, hjust = 1, size = 3))
 
 #TODO: x axis is unreadable!
-first_plot.save(filename = "results/time_series_plot1.pdf")
+first_plot.save(filename = "../results/time_series_plot.pdf")
 
 # notes: 
 # (i) for a few time points, there are multiple entries: 
 sum(ts.duplicated(subset = ["datetime"]))
+
 # (ii) there are a lot of very low "15" entries 
+pd.crosstab(ts.duplicated(subset = ["datetime"]), ts["temperature"])
+pd.crosstab(ts.duplicated(subset = ["datetime"]), ts["property_name"])
+
+ts.loc[ts.duplicated(subset = ["datetime"]), "temperature"].describe()
+
 
 # Part 3: take a first look into the customer lead generator data
 custom_lead_generator = path + "/data/CustomerData_LeadGenerator.csv"
