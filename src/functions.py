@@ -36,7 +36,7 @@ def read_clg_data(path_to_data = "data/DataScienceCodingChallenge/data/CustomerD
     
     try: 
         the_data = pd.read_csv(path_to_data)
-        return(the_data)
+        return(folder, the_data)
     except: 
         print("Can't read csv file at '" + path_to_data + "'")
         sys.exit(2)
