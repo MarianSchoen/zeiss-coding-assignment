@@ -1,14 +1,15 @@
 # written by Marian Schoen 
 
 # This script is used to extract the zip file, and investigate both data sets. 
+# There are a some informative console + pdf outputs. 
+# All information gained from this script is reported in the Readme
 
 import os, sys
 from zipfile import ZipFile
+from functions import read_clg_data
 
 # Part 1: extract the zip file, handle a potentially missing file, and fix repository structure
-
-#TODO: the working directory might either be ".", or "./src":
-# print(os.getcwd())
+# (this has been copy n pasted into the 'src/funtions.py')
 
 if os.path.exists("data"): 
     folder = "./data/"
@@ -69,9 +70,8 @@ ts.loc[ts.duplicated(subset = ["datetime"]), "temperature"].describe()
 
 
 # Part 3: take a first look into the customer lead generator data
-custom_lead_generator = path + "/data/CustomerData_LeadGenerator.csv"
 
-clg = pd.read_csv(custom_lead_generator)
+clg = read_clg_data()
 
 # notes: 
 # (i) b_specialisation* seems to be one-hot-encoded
