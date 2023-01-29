@@ -4,10 +4,44 @@ This project is part of my (Marian Schön) application as a data scientist at Ze
 # Structure
 
 There are 3 main folders - data, src, results. 
-Scripts are stored in `./src`, automatically generated results in `./results`, the `./data` folder is empty as I do not want to share external data. 
-Please paste the provided zip file into the `./data`/` folder. 
+Scripts are stored in `./src`. Automatically generated results in `./results`, the `./data` folder is empty as I do not want to share external data. 
+Please paste the provided zip file into the `./data` folder. 
+
+In `./src/` the script `./src/100_investigate_data.py` shows basic information for both challenges.
+The script `./src/200_set_up_custom_lead_generator_data.py` is used to analyse the custom lead generator data set. For better readability, I opted not to split this up into multiple subscripts. Exemplarily, I outsourced the data loading function into `./src/functions.py`.
 
 # The Challenges
+
+## Custom Lead Generator
+
+This data set consists of 3773 rows (=> samples), and 26 columns. There are 23 feature columns, one `fakeID` column, and 2 boolean variables `b_in_kontakt_gewesen` and `b_gekauft_gesamt`. As indicated in the description pdf, I assume that those are the important labels for this dataset. I assume that `b_in_kontakt_gewesen` means whether this sample has been contacted, and `b_gekauft_gesamt` indicates whether there was a sale. In total, there have been 95 contacts, 57 of which led to a sale. There was no sale without a contact previously. 
+
+For this challenge, I state the following two main questions: 
+
+- Identify those unvisited samples that are similar to visited samples that have led to a sale.  (predicting samples)
+- This includes identifying features that indicate that there will be a sale. (identify features)
+
+### Assumptions
+As described in the code, I assume that this dataset is from a salesman, that contacted multiple retail outlets. For example, a medical product owner that contacts pharmacies. She already contacted 95 pharmacies and sold the product to 57 of them. 
+As there are above 3000 potential pharmacies/samples to be contacted, we try to reduce that set. 
+
+### (Pseudo) univariate test
+In order to identify features that are characteristic for a sale, I visualized scatterplots per feature coloured by sale. The plots can be found in `results/scatterplots/*`. The interpretation of the plots is included in the code. 
+
+### Random Forest
+In order to predict the unvisited samples, I traind a random forest. I evaluate its performance in a leave-one-out cross-validation. It showed that the training accuracy is close to perfect, the loocv accuracy is close to guessing. This means that the trees potentially overfit. 
+As described in the code, I did not focus in optimising the ML model itself, but to finish the explorative analysis. As the ML model is a modular part of the analysis, it can later be adapted, and then plugged into the code. 
+
+### 2D embedding, combining both approaches
+In order to understand the low RF performance, and to select samples that (i) show a similar feature pattern as visisted + sale samples and (ii) the ML model predicts to be sale candidates, I embed the data in 2D, using the UMAP approach. The full interpretation is in the code. 
+There are visualizations stored at `results/UMAPs`. 
+
+In the end, I write a csv at `results/potential_samples_based_on_UMAP_bspecialisationb.csv` that combines both, knowledge from the (pseudo) univariate test, and the ML random forest approach. 
+
+### Next steps, TODOs 
+
+- [ ] improve performance for the ML model  
+- [ ] automate sample selection 
 
 ## Time Series Data 
 
@@ -38,19 +72,3 @@ In words, this means that the temperature at time point x is estimated as a weig
 - I already assumed that the double measurement points are potentially wrong - I'd not use them for test or training. Later on, we can predict those time points and see whether one of the duplicated time points fits our model better. 
 
 As my talent for time series is laying dormant, I decided not to analyse this data set first. Hopefully, we can come back later to this problem, share ideas and implement it!
-
-## Custom Lead Generator
-
-This data set consists of 3773 rows (=> samples), and 26 columns. There are 23 feature columns, one `fakeID` column, and 2 boolean variables `b_in_kontakt_gewesen` and `b_gekauft_gesamt`. As indicated in the description pdf, I assume that those are the important labels for this dataset. I assume that `b_in_kontakt_gewesen` means whether this sample has been contacted, and `b_gekauft_gesamt` indicates whether there was a sale. In total, there have been 95 contacts, 57 of which led to a sale. There was no sale without a contact previously. 
-
-For this challenge, I state the following two main questions: 
-
-1. Identify those unvisited samples that are similar to visited samples that have led to a sale.  For the moment I call these `potential sales candidates`. This includes identifying features that indicate that there will be a sale, `potential sales features`. 
-2. Identify those features that characterise samples which did not lead to a sale, even though they have been visited. Let's call these `potential reject candidates`. As above, this includes identifying features that serve as `potential sale inhibitors`. 
-
-This means, that I train 2 different models. 
-Once, I predict whether there was a sale or not (`b_gekauft_gesamt`). In this approach, I disregard the `b_in_kontakt_gewesen` feature. 
-
-Things, that need to be considered for this approach: 
-
-- There are only 95 samples to train/optimise a model on. Therefore, I will use leave-one-out cross-validation to increase the test set. With the cross-validation, I check the test/training error ratio, to detect over-fitting, and calibrate the regularization parameter. 
