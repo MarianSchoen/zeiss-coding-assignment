@@ -1,16 +1,20 @@
 # written by Marian Schoen
 
 # this script automatically generates
-# - a scatterplot folder in 'results'. There, one plot per feature (column) 
+# - a "scatterplot" folder in "results". There, one plot per feature (column) 
 # of the data set is stored as pdf 
-# 
+# - a "rf_visualizations" folder in "results". There are 3 pdf plots, 
+# described below
+# - a "UMAPs" folder in "results". There, one plot per feature (column) of the 
+# data is stored as png
+# a csv in results (described below)
 
 import os
 import pandas as pd
 import umap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
-from plotnine import ggplot, aes, geom_point, theme, element_text, ggtitle, geom_hline, save_as_pdf_pages
+from plotnine import ggplot, aes, geom_point, ggtitle, geom_hline
 import matplotlib.pyplot as plt
 from functions import read_clg_data
 
@@ -21,8 +25,8 @@ clg.info()
 # FakeID is object.
 # q_OpeningHours are dtype object, with numerical entries + some char/str.     
 # As I don't know what this indicates, I would ask for expert knowledge. 
-# For this coding challenge, I interprete it as numeric. 
-# Any entry that can not be casted to numeric, will be excluded
+# For this coding challenge, I interpret it as numeric. 
+# Any entry that can not be cast to numeric, will be excluded
 opening_hours_manipulated = []
 for oh in clg["q_OpeningHours"]: 
     try: 
@@ -33,9 +37,9 @@ for oh in clg["q_OpeningHours"]:
 
 nan_indices = opening_hours_manipulated.index("nan")
 clg = clg.drop(nan_indices)
-del opening_hours_manipulated[-nan_indices]
+del opening_hours_manipulated[nan_indices]
 
-clg["q_OpeningHours_manipulated"] = opening_hours_manipulated
+clg["q_OpeningHours_manipulated"] = pd.to_numeric(opening_hours_manipulated)
 clg = clg.drop("q_OpeningHours", axis = 1)
 
 # By looking into the data, quickly check what features are in the data set: 
@@ -43,7 +47,8 @@ clg = clg.drop("q_OpeningHours", axis = 1)
 # specialisations, this can not directly be treated as a one-hot-encoded 
 # variable.
 # q_OpeningDays, q_OpeningHours ? potentially information about a/the store?
-# q_2017* Househould and per Capita information, potentially of the city/state the data set comes from
+# q_2017* Househould and per Capita information, potentially of the city/state
+#  the data set comes from
 # all features are numeric (or categorically numeric)
 # 'b_in_kontakt_gewesen', 'b_gekauft_gesamt' are 0,1 (logical) variables.
 
@@ -57,7 +62,8 @@ clg = clg.drop("q_OpeningHours", axis = 1)
 
 # The question arising here is: 
 # 1. is there a pattern for those pharmacies that rejected/accepted the product. 
-# 2. Can we train a ML model to predict which uncontacted pharmacies may buy the product once they are contacted. 
+# 2. Can we train a ML model to predict which uncontacted pharmacies may 
+# buy the product once they are contacted. 
 
 # (Simple) Feature Engineering:
 # As described above, I assume that each sample/row 
@@ -72,9 +78,10 @@ city_identifier = [str(clg.loc[i,"q_2017 Total Households"]) + "-" + str(clg.loc
 # NOTE: I decide not to scale/normalize any of those features, because
 # 1. I use a simple univariate test/visualization per feature and a 
 # random forest. 
-# THere, each feature is used to split the data independently, therefore 
+# There, each feature is used to split the data independently, therefore 
 # no scaling is required. 
-# 2. Keeping the data in their natural range will help interpreting the results later on
+# 2. Keeping the data in their natural range will help interpret the 
+# results later on
 
 # select those samples (= rows) that have been visited 
 visited_samples = clg[clg["b_in_kontakt_gewesen"] == 1]
@@ -83,7 +90,7 @@ visited_samples_sale_label = visited_samples["b_gekauft_gesamt"]
 # Explorative Analysis ("pseudo" univariate test): 
 # Visualize all features individually, coloured by 
 # "b_gekauft_gesamt", in order to detect patterns. Adding dashed mean
-# that solve as a univariate test "by eye" help to detect potential 
+# that solve as a univariate test "by eye" helps to detect potential 
 # discriminator
 
 # initiate an one-column DataFrame, for easier plotnine plotting
@@ -122,19 +129,25 @@ for a_column in visited_samples.columns:
     # remove the plotted column from ptp
     ptp = ptp.drop(clean_name, axis = 1)
 
-# plot interpretation: 
-# Each plot can be intrepreted as a univariate test, if the dashed mean 
+# Plot interpretation: 
+# Each plot can be intrepret as a univariate test, if the dashed mean 
 # lines are clearly separated a corresponding test might be 
 # significant. 
 # (i) -> there is no feature that clearly separates
 # the data into "gekauft"/"nicht gekauft". 
-# (ii) "b_specialisation_b" is always 1, when "gekauft". However, there are a lot of "b_specialisation_b" are 1 without "gekauft". Similar observation for "b_sepcialisation_d".
-# (iii) in average, "q_2017 HHs: 5th Quintile (68.759 and above)" is higher (> 100 000) in the "gekauft" group. This is a 1.5 fold change compared to the "nicht gekauft" group with ~75 000. Similar observation for "q_2017 Pop 15+/Edu: University, Fachhochschule", "q_2017 Total Households" and "q_2017 Total Population". 
+# (ii) "b_specialisation_b" is always 1, when "gekauft". However, there are 
+# a lot of "b_specialisation_b" are 1 without "gekauft". Similar observation 
+# for "b_sepcialisation_d".
+# (iii) in average, "q_2017 HHs: 5th Quintile (68.759 and above)" is higher 
+# (> 100 000) in the "gekauft" group. This is a 1.5 fold change compared to 
+# the "nicht gekauft" group with ~75 000. Similar observation for 
+# "q_2017 Pop 15+/Edu: University, Fachhochschule", "q_2017 Total Households" 
+# and "q_2017 Total Population". 
 
 # Model Learning 
 # The explorative analysis showed that some features in the data set 
 # show a (minor) discriminative power. 
-# Therefore, I train a random forrest to predict "b_gekauft_gesamt" 
+# Therefore, I train a random forest to predict "b_gekauft_gesamt" 
 # using all features (besides "b_in_kontakt_gewesen" and "fakeID") 
 # on all "b_in_kontakt_gewesen" samples. 
 # As there are "only" 95 samples, I check the model performance in a 
@@ -143,10 +156,11 @@ for a_column in visited_samples.columns:
 # samples/pharmacies potentially should be visited.
 
 # For that, drop those columns that are not used as predictors
-visited_samples = visited_samples.drop(["b_in_kontakt_gewesen", "b_gekauft_gesamt", "fakeID"], axis = 1)
+not_used_variables = ["b_in_kontakt_gewesen", "b_gekauft_gesamt", "fakeID"]
+visited_samples = visited_samples.drop(not_used_variables, axis = 1)
 
 # In this version, there is only one hyperparameter: 
-n_trees = 25 # n_trees is manually tuned. In order to get better result, 
+n_trees = 25 # n_trees is manually tuned. In order to get better results, 
 # we could increase/decrease this number and check the models performance
 
 # initiate an empty array to store the predicted classes
@@ -173,22 +187,34 @@ for leave_out_index in visited_samples.index:
 
 # LOOCV contingecny table: 
 loocv_ct = pd.crosstab(visited_samples_sale_label, predicted_class)
-# => accuracy is slightly above 50 %, which for a 2 level prediciton is same as guessing
+loocv_accurary = (loocv_ct.iloc[0,0] + loocv_ct.iloc[1,1]) / loocv_ct.to_numpy().sum()
+# => accuracy is slightly above 50 %, which for a 2 level prediciton is the 
+# same as guessing
 #NOTE: I decided to use a RF for this challenge. In order to show you all 
 # aspects of an explorative analysis, I keep using this RF model, even 
 # though its predictions are bad. 
-#TODO: check different ML models, whether they predict better (postponed for 
-# later versions of this project)
+#TODO: check different ML models, and whether they predict better 
+# (postponed for later versions of this project)
 
 rf = RandomForestClassifier(
     n_estimators = n_trees # number of trees in the forest 
 )
 rf.fit(visited_samples, visited_samples_sale_label)
-clg["RF_prediction"] = rf.predict(all_samples)
 
-
-# contingency table: 
+# contingency table with all samples as training: 
 train_ct = pd.crosstab(visited_samples_sale_label, rf.predict(visited_samples))
+train_accurary = (train_ct.iloc[0,0] + train_ct.iloc[1,1]) / loocv_ct.to_numpy().sum()
+
+# visualize both contingency tables, at 
+path_to_results_RF = folder + "results/rf_visualizations/"
+if not os.path.exists(path_to_results_RF): 
+    os.mkdir(path_to_results_RF)
+
+loocv_ct.plot(kind = "bar", stacked = True, title = "LOOCV contingency table, acc: " + str(round(loocv_accurary, ndigits=3)), ylabel = "count")
+plt.savefig(path_to_results_RF + "LOOCV_contingency_table.pdf", format = "pdf")
+#TODO: this is copy n pasted, if time clean this up
+train_ct.plot(kind = "bar", stacked = True, title = "Training contingency table, acc: " + str(round(train_ct, ndigits=3)), ylabel = "count")
+plt.savefig(path_to_results_RF + "Train_contingency_table.pdf", format = "pdf")
 
 # Check feature importances, in order to interpret the ML model
 importances = rf.feature_importances_
@@ -196,53 +222,113 @@ fi = pd.DataFrame(importances, columns = ["MDI"])
 fi["feature"] = [str(i) for i in visited_samples.columns]
 
 fi_plot = ggplot(fi) + aes(x = "reorder(feature, MDI)", y = "MDI") + geom_point() + theme(axis_text_x = element_text(angle = 70, hjust = 1, size = 8)) + ggtitle("Mean Decrease Importancy")
-fi_plot.save(folder + "results/RF_MDI_plot.pdf")
+fi_plot.save(path_to_results_RF + "RF_MDI_plot.pdf")
+
+# Plot interpretation: 
+# (i) the LOOCV accuracy is bad. It's seed depending, but below 60%, which is
+# similar as guessing for a 2 class problem 
+# (ii) the training accuracy is way higher. If the training accuracy is that 
+# much higher than the test accuracy, I assume the RF is overfitted. 
+# Potentially, we can do 3 things 
+# (a) reduce the tree depth. Allow each tree to have only, e.g., 5 splitting
+# steps. The number "5" needs to be tuned. 
+# (b) reduce the number of features sampled at each split. This forces the 
+# trees to use different variables. 
+# (c) get more data. 
+# In this challenge, I'll stick with this tree knowing it does not perform 
+# well in order to demonstrate all steps of an explorative analysis. 
+# If there's time later, we can either modularly plug in an alternative 
+# predictor (lasso, SVM, a fancy neural net) to boost the prediction, or try
+# to increase the performance of the RF. 
 
 
 # With the model at hand, I predict all samples:
-# drop those features that have not been used in the RF
-all_samples = clg.drop(["b_in_kontakt_gewesen", "b_gekauft_gesamt", "fakeID"], axis = 1)
+# drop those features that have not been used in the training of the ML model
+all_samples = clg.drop(not_used_variables, axis = 1)
 
-# predict those samples
+# predict all samples, store the prediction in the pandas data frame
 clg["RF_prediction"] = rf.predict(all_samples)
+not_used_variables.append("RF_prediction")
 
+# To this end, we have a set of features that should potentially be 
+# cross-checked by an expert that indicate whether a new sample/pharmacy
+# should be visited as the change of a sale is higher. 
+# Additionally, we trained a machine learning model to all samples 
+# based on a random forest model. 
+# In a last step, we're going to combine those 2 steps. I embed 
+# the data into 2 dimensions using the UMAP approach.
 
-# To this end, we have a set of features that should potentially be cross checked by an expert that indicate whether a new sample/pharmacy should be visited as the change of a sale is higher. 
-# Additionally, we did a similar prediction based on a random forest model. 
-# In a last step, we're going to combine those 2 steps. I embedd 
-# the data into 2 dimension using the UMAP approach. In the resulting 
-# plot, I highlight both the potentially beneficial features, and the 
-# prediction of the RF model.
-
-# As UMAP estimates neighborhoods/distances in the high
+# As UMAP estimates neighbourhoods/distances in the high
 # dimensional space, we need to scale all data. 
-scaled_data = StandardScaler().fit_transform(clg.drop(["b_in_kontakt_gewesen", "b_gekauft_gesamt", "fakeID", "RF_prediction"], axis = 1))
+scaled_data = StandardScaler().fit_transform(clg.drop(not_used_variables, axis = 1))
 
-reducer = umap.UMAP()
+# initiate a umap instance with fixed random_state
+reducer = umap.UMAP(random_state = 42)
 
 clg_in_2D = reducer.fit_transform(scaled_data)
 
 clg["UMAP1"] = clg_in_2D[:,0]
 clg["UMAP2"] = clg_in_2D[:,1]
 
+path_to_results_umap = folder + "results/UMAPs/"
+if not os.path.exists(path_to_results_umap): 
+    os.mkdir(path_to_results_umap)
+
+# for plotnine plotting, factor entries should not be numeric
 clg["b_gekauft_gesamt"] = [str(i) for i in clg["b_gekauft_gesamt"]]
+clg["b_in_kontakt_gewesen"] = [str(i) for i in clg["b_in_kontakt_gewesen"]]
+
+samples_with_sale = clg[clg["b_gekauft_gesamt"] == "1"]
 
 umap_plot_default = ggplot(clg) + aes(x = "UMAP1", y = "UMAP2") + ggtitle("Each dot is a sample/row/pharmacy")
 
-
-plots = []
-plots.append(umap_plot_default + geom_point())
 # As only 95 points are blue, and all others are red, I use the 
 # alpha value to highlight the blue points
-plots.append(
-    umap_plot_default + aes(colour = "b_gekauft_gesamt", alpha = "b_gekauft_gesamt") + geom_point()
-)
+a_plot = umap_plot_default + aes(colour = "b_gekauft_gesamt", alpha = "b_gekauft_gesamt") + geom_point()
+file_name = path_to_results_umap + "00_bgekauftgesamt.png"
+a_plot.save(file_name) 
 
 for a_column in clg.columns:
     if a_column in ["fakeID", "b_gekauft_gesamt", "b_in_kontakt_gewesen", "UMAP1", "UMAP2"]: 
         continue 
     
-    plots.append(umap_plot_default + aes(colour = a_column, alpha = "b_gekauft_gesamt", shape = "b_gekauft_gesamt") + geom_point())
+    clean_name = ''.join(l for l in a_column if l.isalnum())
 
-#TODO: that command does not transport the colouring. 
-save_as_pdf_pages(plots, folder + "results/ctg_in_UMAP.pdf")
+    a_plot = umap_plot_default + geom_point(data = samples_with_sale, mapping = aes(x = "UMAP1", y = "UMAP2", size = 6)) + geom_point(data = clg, mapping = aes(colour = a_column))
+
+    file_name = path_to_results_umap + clean_name + ".png"
+    a_plot.save(file_name)
+
+# Plot interpretation: 
+# (i) the first plot (*/00_bgekauft_gesamt.png) shows us, that the samples
+# seem to be quite heterogeneous. By eye, it's not easy to find a clear 
+# structure/clusters in the data. This can either be due to the hyperparameters
+# of the UMAP embedding or due to the data itself (the second interpretation 
+# would go along with the bad performance of the RF)
+# (ii) Using this plot, we can identify samples with a certain property, that 
+# is similar to samples that are labelled as a sale. For example, let's 
+# focus on the */bspecialisationb.png plot. We can see that all samples 
+# with that specialisation are either located in the most left, or the 
+# most bottom cluster. For both clusters, there are a samples that have 
+# been visited, and there was a sale. Potentially, those 2 clusters should be
+# revisited. 
+# This approach can be done with all features, to identify samples that 
+# (a) have a contacted + sale sample in their "neighbourhood" (from a data
+# structure viewpoint)
+# (b) have a certain feature characteristic. 
+# We can combine this with our ML model approach, and pick from the selected clusters: 
+
+# even though I am convinced that this approach leads to a valid selection of 
+# pharmacies/samples, I would contact an internal expert to validate the 
+# meaning of e.g. "b_specialisation_b", and if it is reasonable to select 
+# future samples on this. 
+# Then, I would automate the sample selection tool, that currently runs 
+# manually like: 
+potential_samples_c1 = clg[clg["UMAP1"] < -5]
+potential_samples_c2 = clg[clg["UMAP2"] < -10]
+potential_samples = pd.concat([potential_samples_c1, potential_samples_c2])
+
+# select only those samples where our RF_prediction is 1: 
+potential_samples = potential_samples[potential_samples["RF_prediction"] == 1]
+potential_samples.to_csv(path_or_buf= folder + "results/potential_samples_based_on_UMAP_bspecialisationb.csv")
+
