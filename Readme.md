@@ -1,5 +1,6 @@
 # Coding Challenge
 This project is part of my (Marian Schön) application as a data scientist at Zeiss. 
+I used python 3.9 to develop. 
 
 # Structure
 
