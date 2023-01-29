@@ -14,13 +14,13 @@ import pandas as pd
 import umap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
-from plotnine import ggplot, aes, geom_point, ggtitle, geom_hline
+from plotnine import ggplot, aes, geom_point, ggtitle, geom_hline, theme, element_text
 import matplotlib.pyplot as plt
 from functions import read_clg_data
 
 folder, clg = read_clg_data()
 
-# Check the info of the DataFrame => all but 2 int, or float 
+# Check the info of the DataFrame => all but 2 are int, or float 
 clg.info()
 # FakeID is object.
 # q_OpeningHours are dtype object, with numerical entries + some char/str.     
@@ -309,7 +309,7 @@ for a_column in clg.columns:
 # is similar to samples that are labelled as a sale. For example, let's 
 # focus on the */bspecialisationb.png plot. We can see that all samples 
 # with that specialisation are either located in the most left, or the 
-# most bottom cluster. For both clusters, there are a samples that have 
+# most bottom cluster. For both clusters, some samples have 
 # been visited, and there was a sale. Potentially, those 2 clusters should be
 # revisited. 
 # This approach can be done with all features, to identify samples that 
@@ -329,6 +329,9 @@ potential_samples_c2 = clg[clg["UMAP2"] < -10]
 potential_samples = pd.concat([potential_samples_c1, potential_samples_c2])
 
 # select only those samples where our RF_prediction is 1: 
+# Notice, the RF is not stable, resourcing this script slightly changes the
+# potential samples. For the moment, I'll not attack this problem, 
+# as the RF/ML model must be changed for a final prediction
 potential_samples = potential_samples[potential_samples["RF_prediction"] == 1]
 potential_samples.to_csv(path_or_buf= folder + "results/potential_samples_based_on_UMAP_bspecialisationb.csv")
 
